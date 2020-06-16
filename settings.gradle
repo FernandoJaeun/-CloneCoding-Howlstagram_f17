@@ -1,0 +1,2 @@
+rootProject.name='Howlstagram_f17'
+include ':app'
