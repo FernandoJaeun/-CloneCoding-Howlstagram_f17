@@ -15,18 +15,18 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
-        auth = FirebaseAuth.getInstance()
-        email_login_button.setOnClickListener{ signinAndSignup()}
 
+        auth = FirebaseAuth.getInstance()
+        email_login_button.setOnClickListener { signinAndSignup() }
     }
 
     fun signinAndSignup() {
         auth?.createUserWithEmailAndPassword(
             email_edittext.text.toString(),
             password_edittext.text.toString()
-        )?.addOnCompleteListener() { task ->
+        )?.addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                // 유저 정보 생성
+                // 계정이 생겼을 때
                 moveMainPage(task.result?.user) // safe call
             } else if (task.exception?.message.isNullOrEmpty()) {
                 // 에러 메세지 띄우기
@@ -42,11 +42,13 @@ class LoginActivity : AppCompatActivity() {
         auth?.createUserWithEmailAndPassword(
             email_edittext.text.toString(),
             password_edittext.text.toString()
-        )?.addOnCompleteListener() { task ->
+        )?.addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 // 로그인
+                moveMainPage(task.result?.user) // safe call
             } else {
                 // 에러 메세지 표시
+                Toast.makeText(this, task.exception?.message, Toast.LENGTH_LONG).show()
             }
         }
     }
