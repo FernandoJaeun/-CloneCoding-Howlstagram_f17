@@ -8,8 +8,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.howlstagram_f17.R
 import com.example.howlstagram_f17.navigation.model.ContentDTO
+import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.UploadTask
 import kotlinx.android.synthetic.main.activity_add_photo.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -20,15 +23,18 @@ class AddPhotoActivity : AppCompatActivity() {
     var storage: FirebaseStorage? = null
     var photoUri: Uri? = null
     var auth: FirebaseAuth? = null
-    var firestore: FirebaseStorage? = null
+    var firestore : FirebaseFirestore? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_add_photo)
+
         //storage initiate
         storage = FirebaseStorage.getInstance()
         auth = FirebaseAuth.getInstance()
-        firestore = FirebaseStorage.getInstance()
+        firestore = FirebaseFirestore.getInstance()
+
         //open the Album, photo select
         var photoPickerIntent = Intent(Intent.ACTION_PICK)
         photoPickerIntent.type = "image/*"
@@ -58,21 +64,35 @@ class AddPhotoActivity : AppCompatActivity() {
         var imageFileName = "IMAGE_" + timestamp + "_.png"
         var storageRef = storage?.reference?.child("images")?.child(imageFileName)
 
-        //file Upload
+        //promise method
+        storageRef?.putFile(photoUri!!)?.continueWithTask{ task : Task<UploadTask.TaskSnapshot> ->
+            return@continueWithTask  storageRef.downloadUrl }?.addOnSuccessListener { uri -> var contentDTO = ContentDTO() }
+
+        //Callback method
         storageRef?.putFile(photoUri!!)?.addOnSuccessListener {
-            storageRef.downloadUrl.addOnSuccessListener { uri ->  }
-            var contentDTO = ContentDTO()
+            storageRef.downloadUrl.addOnSuccessListener { uri ->
+                var contentDTO = ContentDTO()
 
-            //이미지 다운로드 URL 삽입
-            contentDTO.imageUrl = uri.toString()
+                //Insert download Uri of image
+                contentDTO.imageUrl = uri.toString()
 
-            contentDTO.uid = auth?.currentUser?.uid
-            contentDTO.userId = auth?.currentUser?.email
-            contentDTO.explain = addphoto_edit_explain.text.toString()
-            contentDTO.timestamp = System.currentTimeMillis()
-            firestore?.collection("images").document().set(contentDTO)
-            setResult(Activity.RESULT_OK)
-            finish()
+                //Insert uid of user
+                contentDTO.uid = auth?.currentUser?.uid
+
+                //Insert userID
+                contentDTO.userId = auth?.currentUser?.email
+
+                //Insert explain of content
+                contentDTO.explain = addphoto_edit_explain.text.toString()
+
+                //Insert timeStamp
+                contentDTO.timestamp = System.currentTimeMillis()
+
+                firestore?.collection("images")?.document()?.set(contentDTO)
+
+                setResult(Activity.RESULT_OK)
+                finish()
+            }
         }
     }
 }
