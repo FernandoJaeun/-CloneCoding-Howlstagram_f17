@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.howlstagram_f17.R
 import com.example.howlstagram_f17.navigation.model.ContentDTO
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.android.synthetic.main.fragment_detail.view.*
 import kotlinx.android.synthetic.main.item_detail.view.*
@@ -17,6 +18,8 @@ import kotlinx.android.synthetic.main.item_detail.view.*
 class DetailViewFragment : Fragment() {
 
     var firestore: FirebaseFirestore? = null
+    var uid: String? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -24,10 +27,10 @@ class DetailViewFragment : Fragment() {
     ): View? {
         var view = LayoutInflater.from(activity).inflate(R.layout.fragment_detail, container, false)
         firestore = FirebaseFirestore.getInstance()
+        uid = FirebaseAuth.getInstance().currentUser?.uid
 
         view.detailviewfragment_recyclerview.adapter = DetailViewRecyclerViewAdapter()
         view.detailviewfragment_recyclerview.layoutManager = LinearLayoutManager(activity)
-
         return view
     }
 
@@ -56,7 +59,8 @@ class DetailViewFragment : Fragment() {
             return CustomViewHolder(view)
         }
 
-        inner class CustomViewHolder(view: View) : RecyclerView.ViewHolder(view)    // 리사이클러 뷰가 차지하는 메모리 양을 줄여주기 위한 이너 클래스
+        inner class CustomViewHolder(view: View) :
+            RecyclerView.ViewHolder(view)    // 리사이클러 뷰가 차지하는 메모리 양을 줄여주기 위한 이너 클래스
 
         override fun getItemCount(): Int {
             return contentDTOs.size
@@ -76,15 +80,42 @@ class DetailViewFragment : Fragment() {
             viewholder.detailviewitem_explain_textview.text = contentDTOs[position].explain
 
             //likes
-            viewholder.detailviewitem_favoritecounter_textview.text = "좋아요 " + contentDTOs[position].favoriteCount + "개"
+            viewholder.detailviewitem_favoritecounter_textview.text =
+                "좋아요 " + contentDTOs[position].favoriteCount + "개"
 
-            //profile Image
-            Glide.with(holder.itemView.context).load(contentDTOs[position].imageUrl)
-                .into(viewholder.detailviewitem_profile_image)
-
+            //This code is When the button is clicked
+            viewholder.detailviewitem_favorite_imageview.setOnClickListener {
+                favoriteEvent(position)
+            }
+            if (contentDTOs[position].favorites.containsKey(uid)) {
+                //This is like status
+                viewholder.detailviewitem_favorite_imageview.setImageResource(R.drawable.ic_favorite)
+            } else {
+                //This is unlike status
+                viewholder.detailviewitem_favorite_imageview.setImageResource(R.drawable.ic_favorite_border)
+            }
         }
 
+        fun favoriteEvent(position: Int) {
+            var tsDoc = firestore?.collection("images")?.document(contentUidList[position])
+            firestore?.runTransaction { transaction ->
 
+                var uid = FirebaseAuth.getInstance().currentUser?.uid
+                var contentDTO = transaction.get(tsDoc!!).toObject(ContentDTO::class.java)
+
+                if (contentDTO!!.favorites.containsKey(uid)) {
+                    //When the button is clicked
+                    contentDTO.favoriteCount = contentDTO.favoriteCount - 1
+                    contentDTO.favorites.remove(uid)
+                } else {
+                    //When the button is not clicked
+                    contentDTO.favoriteCount = contentDTO.favoriteCount + 1
+                    contentDTO.favorites[uid!!] = true
+                }
+                transaction.set(tsDoc, contentDTO)  // 다시 서버로 돌려준다?
+            }
+
+        }
     }
 
 }
